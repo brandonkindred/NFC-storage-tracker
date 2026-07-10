@@ -77,6 +77,43 @@ Defined once as CSS tokens at the top of `index.html` and reused across all scre
 Retune the whole look by editing the `:root` (and `:root[data-theme="dark"]`) token
 blocks — accent, radii, and surface colors flow through every screen.
 
+## Accessibility (built to WCAG 2.2 AA)
+
+The prototype is designed to conform to WCAG 2.2 Level AA and to model accessible
+patterns for the real app:
+
+- **Perceivable** — every text/UI color pair meets **≥ 4.5:1** contrast in *both* light
+  and dark themes (verified programmatically against the computed tokens). Meaningful
+  emoji tiles expose a text alternative (`role="img"` + `aria-label`); decorative emoji
+  and all inline SVG icons are `aria-hidden`. Category identity is carried by a colored
+  dot **plus** a text label, never color alone (SC 1.4.1).
+- **Operable** — the whole UI is **keyboard-operable**: rows, cards, and the scan CTA are
+  real controls (native `<button>` or `role="button"` + Enter/Space handling), the tab
+  order is logical, and a visible **`:focus-visible`** ring appears for keyboard users
+  (a white + color double-ring over gradients). All targets are **≥ 44×44px**
+  (SC 2.5.8). On navigation, focus moves to the new screen and its name is announced.
+- **Understandable** — one real `<h1>` per screen with a proper heading outline;
+  landmarks (`<main>`, `<nav aria-label="Primary">`, `<header>`); form fields have
+  programmatic labels; the category picker is a keyboard **`radiogroup`** (arrow keys);
+  quantity steppers announce their value via `aria-live`; the modal sheets use
+  `role="dialog"`/`aria-modal`.
+- **Robust** — icon-only buttons all have `aria-label`s; the dark-mode control is a real
+  `role="switch"` with `aria-checked`; the active tab is marked `aria-current="page"`;
+  toasts and result counts announce through polite/assertive live regions.
+- **Motion & scaling** — `prefers-reduced-motion` disables the scan pulse, sheet slide,
+  and fades. Text uses **rem** units and reflows without clipping or horizontal scroll at
+  **200% zoom**.
+
+## Interaction / UX simplifications
+
+- **One primary action per screen** — the container header's duplicate "+ Add" link was
+  removed; the thumb-reachable FAB is the single "Add item" action.
+- **First-run guidance** — a dismissible tip on Home points to the Scan action.
+- **Richer empty states** — an empty bin (*Seasonal Storage*) and an empty location
+  (*Garden Shed*) show friendly, actionable empty states.
+- **Clearer search** — Home's search is a labelled button that opens Search, which now
+  announces a live result count.
+
 ## Design assumptions (open for discussion)
 
 - Single household / personal storage (a light "share with household" is shown in Profile).
