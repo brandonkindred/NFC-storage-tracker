@@ -198,7 +198,7 @@ h1,h2,h3{font-weight:750}
 .coach .ci svg{width:17px;height:17px}
 .coach .ct{flex:1;font-size:.84375rem;color:var(--text);line-height:1.35}
 .coach .ct b{font-weight:700}
-.coach .cx{background:none;border:none;color:var(--text-2);cursor:pointer;padding:4px;min-width:32px;min-height:32px;display:grid;place-items:center;flex:none}
+.coach .cx{background:none;border:none;color:var(--text-2);cursor:pointer;padding:4px;min-width:44px;min-height:44px;margin:-9px -10px -9px 0;display:grid;place-items:center;flex:none}
 .coach .cx svg{width:16px;height:16px}
 /* big scan cta */
 .scan-cta{position:relative;overflow:hidden;border-radius:var(--r-lg);padding:20px;color:#fff;width:100%;
@@ -535,7 +535,7 @@ function catDot(cat){return `<span class="dot" style="background:${CAT[cat]}"></
    ============================================================ */
 const state = {tab:'home', ctId:null, itemId:null, locId:null, ctFrom:'browse', itemFrom:'container', scanFrom:'home', searchScope:null, theme:'light', hintDismissed:false};
 const el = document.getElementById('screen');
-let addCt=null, addCat='Tools', addQty=1, addName='', addNotes='';
+let addCt=null, addCat='Tools', addQty=1, addName='', addNotes='', addBinOpen=false;
 let searchQ='';
 
 function statusbar(){
@@ -546,6 +546,8 @@ function statusbar(){
       <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="3" stroke="currentColor" stroke-opacity=".4"/><rect x="3" y="3" width="15" height="6" rx="1.5" fill="currentColor"/><rect x="23.5" y="4" width="1.5" height="4" rx="1" fill="currentColor" fill-opacity=".5"/></svg>
     </div></div>`;
 }
+/* which tab-bar entry a detail screen belongs to, from its back-origin */
+const tabOf=r=>['home','search','profile'].includes(r)?r:'browse';
 function tabbar(active){
   const t=(id,ic,icF,lbl)=>`<button class="tab ${active===id?'on':''}" ${active===id?'aria-current="page"':''} onclick="go('${id}')">${active===id?icF:ic}<span>${lbl}</span></button>`;
   return `<nav class="tabbar" aria-label="Primary">
@@ -563,7 +565,7 @@ function homeScreen(){
     return `<button class="ccard" onclick="openContainer('${id}','home')" aria-label="${esc(c.name)}, ${n} items in ${esc(l.name)}">
       <span class="top" style="background:${c.grad}" aria-hidden="true">${c.emoji}
         <span class="tag">${I.nfc}<span>Tagged</span></span></span>
-      <span class="bot"><b>${c.name}</b><span>${I.box}${n} items · ${l.name}</span></span>
+      <span class="bot"><b>${esc(c.name)}</b><span>${I.box}${n} items · ${l.name}</span></span>
     </button>`;}).join('');
   const feed = ACT.map(a=>`<li class="fitem"><span class="fic" style="background:${a.color}" aria-hidden="true">${a.ic}</span>
     <span class="ftx"><p>${a.html}</p><time>${a.t}</time></span></li>`).join('');
@@ -615,7 +617,7 @@ function browseScreen(){
     <button class="search" style="margin:12px 0 4px" onclick="go('search')" aria-label="Search all items">${I.search}<span class="ph">Search all items…</span></button>
     <h2 class="divider-lbl">BY LOCATION</h2>
     <div class="list">${locs}</div>
-    <div class="section-head"><h2>All bins</h2><button class="link" aria-label="Sort bins">${I.sort}</button></div>
+    <div class="section-head"><h2>All bins</h2><button class="link" aria-label="Sort bins" onclick="demo()">${I.sort}</button></div>
     <div class="grid2">${Object.keys(CT).map(id=>gcard(id,'browse')).join('')}</div>
   </main>
   ${tabbar('browse')}`;
@@ -623,7 +625,7 @@ function browseScreen(){
 function gcard(id,from){const c=CT[id];const l=LOC[c.loc];const n=itemsIn(id).length;
   return `<button class="gcard" onclick="openContainer('${id}','${from||'browse'}')" aria-label="${esc(c.name)}, ${n} items in ${esc(l.name)}">
     <span class="top" style="background:${c.grad}" aria-hidden="true">${c.emoji}<span class="tag">${I.nfc}NFC</span></span>
-    <span class="bot"><b>${c.name}</b><span>${n} items · ${l.name}</span></span></button>`;}
+    <span class="bot"><b>${esc(c.name)}</b><span>${n} items · ${l.name}</span></span></button>`;}
 
 /* ---------------- LOCATION detail ---------------- */
 function locationScreen(){
@@ -652,7 +654,7 @@ function containerScreen(){
   const c=CT[state.ctId];const l=LOC[c.loc];const items=itemsIn(c.id);
   const rows=items.map(it=>`<button class="row" onclick="openItem('${it.id}','container')" aria-label="${esc(it.name)}, ${it.cat}${it.qty>1?', quantity '+it.qty:''}">
     ${thumb(CAT[it.cat],it.emoji,'sm')}
-    <span class="tx"><b>${it.name}</b><span>${it.cat}</span></span>
+    <span class="tx"><b>${esc(it.name)}</b><span>${it.cat}</span></span>
     <span class="trail" aria-hidden="true">${it.qty>1?('×'+it.qty):''}</span><span class="chev">${I.chev}</span></button>`).join('');
   const contents = items.length
     ? `<h2 class="section-head" style="display:block">Contents</h2>
@@ -668,7 +670,7 @@ function containerScreen(){
         <button class="circ" onclick="demo()" aria-label="Bin options">${I.dots}</button>
       </div>
       <span class="emoji" aria-hidden="true">${c.emoji}</span>
-      <div class="info"><h1>${c.name}</h1>
+      <div class="info"><h1>${esc(c.name)}</h1>
         <div class="meta"><span class="chip">${I.pin}${l.name}</span><span class="chip">${I.nfc}Tag ${c.uid.slice(-5)}</span></div>
       </div>
     </div>
@@ -688,7 +690,7 @@ function containerScreen(){
     </div>
     <button class="fab" onclick="openAdd('${c.id}')" aria-label="Add an item to ${esc(c.name)}">${I.plus}</button>
   </main>
-  ${tabbar('browse')}`;
+  ${tabbar(tabOf(state.ctFrom))}`;
 }
 
 /* ---------------- ITEM detail ---------------- */
@@ -702,7 +704,7 @@ function itemScreen(){
     <div class="item-hero" style="background:${CAT[it.cat]}22"><span role="img" aria-label="${esc(it.name)}" style="filter:drop-shadow(0 8px 16px rgba(0,0,0,.18))">${it.emoji}</span></div>
     <div class="pad">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-top:16px;flex-wrap:wrap">
-        <div style="min-width:0"><h1 class="h1" style="font-size:1.625rem;margin:0;overflow-wrap:anywhere">${it.name}</h1>
+        <div style="min-width:0"><h1 class="h1" style="font-size:1.625rem;margin:0;overflow-wrap:anywhere">${esc(it.name)}</h1>
         <span class="chip" style="margin-top:8px">${catDot(it.cat)}${it.cat}</span></div>
         <div class="qty" role="group" aria-label="Quantity">
           <button data-act="dec" aria-label="Decrease quantity" onclick="adjItemQty('${it.id}',-1)">–</button>
@@ -713,7 +715,7 @@ function itemScreen(){
       <h2 class="divider-lbl">LOCATED IN</h2>
       <div class="list">
         <button class="row" onclick="openContainer('${c.id}','item')" aria-label="Bin ${esc(c.name)} in ${esc(l.name)}">${thumb(c.grad,c.emoji,'')}
-          <span class="tx"><b>${c.name}</b><span>${I.pin}${l.name}</span></span><span class="chev">${I.chev}</span></button>
+          <span class="tx"><b>${esc(c.name)}</b><span>${I.pin}${l.name}</span></span><span class="chev">${I.chev}</span></button>
       </div>
 
       ${it.note?`<h2 class="divider-lbl">NOTES</h2><p class="notes">${esc(it.note)}</p>`:''}
@@ -722,7 +724,7 @@ function itemScreen(){
       <dl class="list">
         <div class="kv"><dt class="k">Category</dt><dd class="v" style="margin:0">${catDot(it.cat)}${it.cat}</dd></div>
         <div class="kv"><dt class="k">Quantity</dt><dd class="v" style="margin:0">${it.qty}</dd></div>
-        <div class="kv"><dt class="k">Added</dt><dd class="v" style="margin:0">Mar 12, 2026</dd></div>
+        <div class="kv"><dt class="k">Added</dt><dd class="v" style="margin:0">${it.added||'Mar 12, 2026'}</dd></div>
       </dl>
 
       <div style="height:16px"></div>
@@ -731,7 +733,7 @@ function itemScreen(){
       <button class="btn danger" onclick="demo()">${I.trash} Delete item</button>
     </div>
   </main>
-  ${tabbar('browse')}`;
+  ${tabbar(state.itemFrom==='search'?'search':tabOf(state.ctFrom))}`;
 }
 function adjItemQty(id,d){const it=IT.find(x=>x.id===id);if(!it)return;it.qty=Math.max(1,it.qty+d);
   render(false);announce('Quantity '+it.qty);const b=el.querySelector('.qty [data-act="'+(d<0?'dec':'inc')+'"]');if(b)b.focus();}
@@ -739,10 +741,15 @@ function adjItemQty(id,d){const it=IT.find(x=>x.id===id);if(!it)return;it.qty=Ma
 /* ---------------- SEARCH ---------------- */
 function itemRow(it,q){const c=CT[it.ct];const l=LOC[c.loc];
   return `<button class="row" onclick="openItem('${it.id}','search')" aria-label="${esc(it.name)}, in ${esc(c.name)}, ${esc(l.name)}">${thumb(CAT[it.cat],it.emoji,'sm')}
-    <span class="tx"><b>${q?hi(it.name,q):esc(it.name)}</b><span>${I.pin}${c.name} · ${l.name}</span></span>
+    <span class="tx"><b>${q?hi(it.name,q):esc(it.name)}</b><span>${I.pin}${esc(c.name)} · ${l.name}</span></span>
     <span class="trail" aria-hidden="true">${it.qty>1?'×'+it.qty:''}</span><span class="chev">${I.chev}</span></button>`;}
+/* strip natural-language lead-ins the placeholder invites ("where is my drill" → "drill") */
+function normQ(s){return s.toLowerCase()
+  .replace(/^\s*(where(?:'s|\s+is|\s+are)?|find|locate)\s+/,'')
+  .replace(/^(my|the|our|a|an)\s+/,'')
+  .replace(/[?!.\s]+$/,'').trim();}
 function searchScreen(){
-  const q=searchQ.trim().toLowerCase();
+  const q=normQ(searchQ);
   const scope=state.searchScope?CT[state.searchScope]:null;
   const base=scope?itemsIn(scope.id):IT;
   const results = q ? base.filter(i=>i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)) : (scope?base:[]);
@@ -766,9 +773,11 @@ function searchScreen(){
     body=`<div class="empty"><div class="ic">${I.search}</div><h2>No matches</h2><p>Nothing found for “${esc(searchQ)}”${scope?' in '+esc(scope.name):''}. Try another word${scope?' or search all bins':' or browse by category'}.</p></div>`;
   }
   const scopeChip = scope ? `<button class="chip" style="margin:0 0 12px;border:none;cursor:pointer" onclick="clearScope()" aria-label="Clear bin filter, search all items">${I.x}Searching in ${esc(scope.name)}</button>` : '';
+  const scopeBack = scope ? `<button class="link" style="padding-left:0;margin-top:4px" onclick="returnTo('container')">${I.back}${esc(scope.name)}</button>` : '';
   return `${statusbar()}
   <main class="view pad pad-b fadein screen-root" tabindex="-1" aria-label="${scope?'Search '+esc(scope.name):'Search'}">
-    <h1 class="h1" style="margin-top:6px">Search</h1>
+    ${scopeBack}
+    <h1 class="h1" style="margin-top:${scope?'0':'6px'}">Search</h1>
     <div class="search" style="margin:12px 0 8px" role="search">${I.search}
       <label class="sr-only" for="searchInput">${scope?'Search '+esc(scope.name):'Search all items'}</label>
       <input id="searchInput" placeholder="${scope?'Search this bin…':"Find any item — 'where is my…'"}" value="${esc(searchQ)}" oninput="onSearch(this.value)" autocomplete="off">
@@ -783,7 +792,7 @@ function hi(text,q){const i=text.toLowerCase().indexOf(q);if(i<0)return esc(text
   return esc(text.slice(0,i))+'<mark style="background:var(--primary-050);color:var(--primary);border-radius:3px;padding:0 2px">'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));}
 function onSearch(v){searchQ=v;const inp=document.getElementById('searchInput');const pos=inp?inp.selectionStart:0;
   render(false);const ni=document.getElementById('searchInput');if(ni){ni.focus();try{ni.setSelectionRange(pos,pos);}catch(e){}}
-  const q=searchQ.trim().toLowerCase();if(q){const n=searchBase().filter(i=>i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)).length;announce(n+' result'+(n!==1?'s':''));}}
+  const q=normQ(searchQ);if(q){const n=searchBase().filter(i=>i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)).length;announce(n+' result'+(n!==1?'s':''));}}
 function setSearch(v){searchQ=v;state.tab='search';render(false);const ni=document.getElementById('searchInput');if(ni)ni.focus();}
 
 /* ---------------- ADD ITEM (sheet) ---------------- */
@@ -815,7 +824,9 @@ function addScreen(){
             <button aria-label="Increase quantity" onclick="adjAddQty(1)">+</button></div></div>
       </div>
       <div class="field"><span class="flabel" id="binLbl">Bin</span>
-        <button class="input tap" aria-labelledby="binLbl" onclick="demo()">${c?`<span class="val">${thumb(c.grad,c.emoji,'sm')}${c.name}</span>`:`<span class="ph">Choose a bin…</span>`}${I.chev}</button>
+        <button class="input tap" id="binPickBtn" aria-labelledby="binLbl" aria-expanded="${addBinOpen}" onclick="toggleBinPicker()">${c?`<span class="val">${thumb(c.grad,c.emoji,'sm')}${esc(c.name)}</span>`:`<span class="ph">Choose a bin…</span>`}${I.chev}</button>
+        ${addBinOpen?`<div class="list" style="margin-top:8px" role="listbox" aria-label="Choose a bin">${Object.values(CT).map(b=>`<button class="row" role="option" aria-selected="${addCt===b.id}" onclick="pickBin('${b.id}')">${thumb(b.grad,b.emoji,'sm')}
+          <span class="tx"><b>${esc(b.name)}</b><span>${LOC[b.loc].name}</span></span>${addCt===b.id?`<span class="chev" style="color:var(--primary)">${I.check}</span>`:''}</button>`).join('')}</div>`:''}
       </div>
       <div class="field"><label for="itemNotes">Notes (optional)</label><input id="itemNotes" class="input" placeholder="Anything worth remembering…" value="${esc(addNotes)}" oninput="addNotes=this.value"></div>
       <button class="btn primary" onclick="saveItem()">${I.plus} Add item${c?' to '+esc(c.name):''}</button>
@@ -823,6 +834,8 @@ function addScreen(){
   </section>`;
 }
 function pickCat(c){addCat=c;render(false);const r=el.querySelector('[role="radio"][aria-checked="true"]');if(r)r.focus();}
+function toggleBinPicker(){addBinOpen=!addBinOpen;render(false);const b=el.querySelector('#binPickBtn');if(b)b.focus();}
+function pickBin(id){addCt=id;addBinOpen=false;render(false);const b=el.querySelector('#binPickBtn');if(b)b.focus();}
 function catKey(e){const keys=['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'];if(!keys.includes(e.key))return;e.preventDefault();
   const cats=Object.keys(CAT);let i=cats.indexOf(addCat);i=(e.key==='ArrowRight'||e.key==='ArrowDown')?(i+1)%cats.length:(i-1+cats.length)%cats.length;pickCat(cats[i]);}
 function adjAddQty(d){addQty=Math.max(1,addQty+d);render(false);announce('Quantity '+addQty);
@@ -832,8 +845,10 @@ function adjAddQty(d){addQty=Math.max(1,addQty+d);render(false);announce('Quanti
 const COVERS=['📦','🔧','🎄','🧥','⛺','🧸','🔌','🍽️','📄','🏀','🎨','🧰'];
 const COVER_COLS=['#6366F1','#B45309','#EF4444','#3B82F6','#10B981','#EC4899','#8B5CF6','#14B8A6','#64748B','#E05A0E','#A855F7','#0284C7'];
 const COVER_DEEP=['#4338CA','#92400E','#B91C1C','#1D4ED8','#047857','#BE185D','#6D28D9','#0F766E','#334155','#9A3412','#7E22CE','#075985'];
-const PAIR_UID='04:D9:33:1A';
-let pairCover=0, pairName='', pairLoc=null;
+const COVER_NAMES=['Moving box, indigo','Tools, amber','Holiday, red','Clothing, blue','Camping, green','Toys, pink','Electronics, violet','Kitchen, teal','Documents, slate','Sports, orange','Arts and crafts, purple','Toolbox, sky blue'];
+let pairCover=0, pairName='', pairLoc=null, pairSeq=0, pairUid='04:D9:33:1A';
+/* each simulated unrecognized scan presents a distinct tag UID */
+function nextPairUid(){pairSeq++;return '04:D9:'+((0x33+pairSeq)%256).toString(16).toUpperCase().padStart(2,'0')+':'+((0x1A+pairSeq*47)%256).toString(16).toUpperCase().padStart(2,'0');}
 function pairScreen(){
   const locBtns=Object.values(LOC).map(l=>`<button class="chip" role="radio" aria-checked="${pairLoc===l.id}" tabindex="${(pairLoc===l.id||(pairLoc===null&&l.id==='garage'))?0:-1}"
       style="padding:10px 13px;font-size:.875rem;border:none;cursor:pointer${pairLoc===l.id?';background:var(--primary-050);color:var(--primary);box-shadow:0 0 0 1.5px var(--primary)':''}"
@@ -842,20 +857,20 @@ function pairScreen(){
   <section class="sheet-scr screen-root" tabindex="-1" role="dialog" aria-modal="true" aria-label="Pair a new bin">
     <div class="grabber" aria-hidden="true"></div>
     <header class="nav" style="background:transparent;backdrop-filter:none;border:none">
-      <div class="side"><button class="back" onclick="go('home')">Cancel</button></div>
+      <div class="side"><button class="back" onclick="cancelPair()">Cancel</button></div>
       <h1 class="title">New Bin</h1><div class="side r"><button class="act" style="font-weight:650" onclick="finishPair()">Pair</button></div>
     </header>
     <div class="view pad" style="padding-bottom:30px">
       <div class="card" style="padding:16px;display:flex;gap:12px;align-items:center;margin-top:6px;background:var(--primary-050)">
         <div class="mini-ic" style="background:var(--primary);width:40px;height:40px;border-radius:12px" aria-hidden="true">${I.nfc}</div>
-        <div><b style="font-size:.9375rem">New tag detected</b><div class="sub" style="font-size:.8125rem">UID ${PAIR_UID} · not yet linked</div></div>
+        <div><b style="font-size:.9375rem">New tag detected</b><div class="sub" style="font-size:.8125rem">UID ${pairUid} · not yet linked</div></div>
       </div>
       <div style="height:16px"></div>
       <div class="field"><label for="binName">Bin name</label><input id="binName" class="input" placeholder="e.g. Garage Overflow" value="${esc(pairName)}" oninput="pairName=this.value"></div>
       <div class="field"><span class="flabel" id="locLbl">Location</span>
         <div role="radiogroup" aria-labelledby="locLbl" onkeydown="locKey(event)" style="display:flex;flex-wrap:wrap;gap:8px">${locBtns}</div></div>
       <div class="field"><span class="flabel" id="coverLbl">Cover</span>
-        <div class="pick-grid" role="radiogroup" aria-labelledby="coverLbl" onkeydown="coverKey(event)">${COVERS.map((e,i)=>`<button class="p" role="radio" aria-checked="${i===pairCover}" aria-label="Cover ${i+1}" tabindex="${i===pairCover?0:-1}" style="background:${COVER_COLS[i]}" onclick="pickCover(${i})">${e}</button>`).join('')}</div>
+        <div class="pick-grid" role="radiogroup" aria-labelledby="coverLbl" onkeydown="coverKey(event)">${COVERS.map((e,i)=>`<button class="p" role="radio" aria-checked="${i===pairCover}" aria-label="${COVER_NAMES[i]}" tabindex="${i===pairCover?0:-1}" style="background:${COVER_COLS[i]}" onclick="pickCover(${i})">${e}</button>`).join('')}</div>
       </div>
       <button class="btn primary" onclick="finishPair()">${I.tag} Write &amp; pair tag</button>
       <p class="sub" style="text-align:center;font-size:.78125rem;margin-top:12px">The tag will be written so anyone can scan this bin.</p>
@@ -874,9 +889,9 @@ function finishPair(){
   if(!pairLoc){toast('Choose a location for this bin');const g=el.querySelector('[aria-labelledby="locLbl"] [role="radio"]');if(g)g.focus();return;}
   const id='c'+(Object.keys(CT).length+1);
   CT[id]={id,name,emoji:COVERS[pairCover],grad:`linear-gradient(135deg,${COVER_COLS[pairCover]},${COVER_DEEP[pairCover]})`,
-    loc:pairLoc,uid:PAIR_UID,last:'Just now',color:COVER_COLS[pairCover]};
+    loc:pairLoc,uid:pairUid,last:'Just now',color:COVER_COLS[pairCover]};
   ACT.unshift({ic:'🏷️',color:'#8B5CF6',act:'pair',html:`Paired a tag to <b>${esc(name)}</b>`,t:'Just now'});
-  openContainer(id,'home');
+  openContainer(id, state.scanFrom==='container' ? 'browse' : (state.scanFrom||'home'));
   toast('Paired "'+name+'" — it\'s ready to fill');
 }
 
@@ -946,16 +961,16 @@ function scanSuccessScreen(id){
   const c=CT[id];const l=LOC[c.loc];
   return `${statusbar()}
   <section class="scan-screen screen-root" tabindex="-1" role="dialog" aria-modal="true" aria-label="Scan successful, ${esc(c.name)}">
-    <div class="top"></div>
+    <div class="top"><button onclick="closeScan()" aria-label="Dismiss scan result">${I.x}</button></div>
     <div class="body">
       <div class="check" aria-hidden="true">${I.check}</div>
-      <h1>${c.name}</h1>
+      <h1>${esc(c.name)}</h1>
       <p>${itemsIn(id).length} items · ${l.name}</p>
       <div style="margin-top:26px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
         <span class="chip" style="background:rgba(0,0,0,.32);color:#fff">${I.nfc}Tag ${c.uid}</span>
       </div>
     </div>
-    <div class="foot"><button class="simbtn solid" onclick="openContainer('${id}',state.scanFrom||'home')">Open bin →</button></div>
+    <div class="foot"><button class="simbtn solid" onclick="openScannedBin('${id}')">Open bin →</button></div>
   </section>`;
 }
 
@@ -995,7 +1010,7 @@ function openContainer(id,from){state.ctFrom=from||state.tab;state.ctId=id;state
 function openLocation(id){state.locId=id;state.tab='location';render(true);}
 function openItem(id,from){state.itemFrom=from||state.tab;state.itemId=id;state.tab='item';render(true);}
 function itemBack(){if(state.itemFrom==='search'){returnTo('search');}else{state.tab='container';render(true);}}
-function openAdd(ct){addCt=ct||null;addQty=1;addCat='Tools';addName='';addNotes='';state.tab='add';render(true);}
+function openAdd(ct){addCt=ct||null;addQty=1;addCat='Tools';addName='';addNotes='';addBinOpen=false;state.tab='add';render(true);}
 function cancelAdd(){state.tab=addCt?'container':'home';render(true);}
 function openBinSearch(id){state.searchScope=id;searchQ='';state.tab='search';render(true);const ni=el.querySelector('#searchInput');if(ni)ni.focus();}
 function clearScope(){state.searchScope=null;render(false);const ni=el.querySelector('#searchInput');if(ni)ni.focus();}
@@ -1005,19 +1020,30 @@ function saveItem(){
   if(!name){toast('Give your item a name first');const f=el.querySelector('#itemName');if(f)f.focus();return;}
   const ct=addCt||state.ctId;
   if(!ct){toast('Choose a bin for this item');return;}
-  IT.push({id:'i'+(IT.length+1),name,emoji:CAT_EMOJI[addCat]||'📦',cat:addCat,qty:addQty,ct,note:addNotes.trim()});
+  const added=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  IT.push({id:'i'+(IT.length+1),name,emoji:CAT_EMOJI[addCat]||'📦',cat:addCat,qty:addQty,ct,note:addNotes.trim(),added});
   ACT.unshift({ic:'➕',color:'#2FA14C',act:'add',html:`Added <b>${esc(name)}</b> to ${esc(CT[ct].name)}`,t:'Just now'});
   state.ctId=ct;state.tab='container';render(true);
   toast('Added '+name);
 }
 function openScan(){
-  state.scanFrom = state.tab==='container' ? (state.ctFrom||'browse')
-    : (['home','browse','search','profile','location'].includes(state.tab)?state.tab:'home');
+  state.scanFrom = ['home','browse','search','profile','location','container'].includes(state.tab)?state.tab:'home';
   state.tab='scan';render(true);
 }
-function closeScan(){returnTo(state.scanFrom||'home');}
+/* cancel restores exactly where scanning began — incl. the container for a re-scan */
+function closeScan(){
+  if(state.scanFrom==='container'){state.tab='container';render(true);}
+  else returnTo(state.scanFrom||'home');
+}
+/* open a scan result with a sensible back-origin: a re-scan of the same bin keeps its
+   existing chain; a different bin from a re-scan falls back to browse */
+function openScannedBin(id){
+  const from = state.scanFrom==='container' ? (state.ctId===id?state.ctFrom:'browse') : (state.scanFrom||'home');
+  openContainer(id,from);
+}
+function cancelPair(){closeScan();}
 function scanSuccess(id){state.scanId=id;state.tab='scanSuccess';render(true);}
-function scanUnknown(){pairName='';pairLoc=null;pairCover=0;state.tab='pair';render(true);}
+function scanUnknown(){pairName='';pairLoc=null;pairCover=0;pairUid=nextPairUid();state.tab='pair';render(true);}
 function demo(){toast('Demo only — not wired in this prototype');}
 
 /* theme */
@@ -1052,7 +1078,7 @@ document.addEventListener('keydown',e=>{
   if(!isModal())return;
   if(e.key==='Escape'){e.preventDefault();
     if(state.tab==='add')cancelAdd();
-    else if(state.tab==='pair')go('home');
+    else if(state.tab==='pair')cancelPair();
     else closeScan();
     return;}
   if(e.key!=='Tab')return;
