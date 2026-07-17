@@ -17,7 +17,7 @@
   --primary:#4F46E5; --primary-600:#4338CA; --primary-050:#EEF0FE;
   --accent:#7C3AED; --grad:linear-gradient(135deg,#5B5BF0,#8B5CF6);
   --grad-warm:linear-gradient(135deg,#4F46E5,#7C3AED); /* darkened for AA text contrast */
-  --success:#34C759; --warning:#FF9F0A; --danger:#FF3B30; --info:#0A84FF;
+  --success:#34C759; --warning:#FF9F0A; --danger:#D70015; --info:#0A84FF; /* danger ≥4.5:1 on bg+surface */
   --focus:#0A66FF;
   /* surfaces (light) */
   --bg:#F2F2F7; --surface:#FFFFFF; --surface-2:#FFFFFF; --raised:#FFFFFF;
@@ -36,6 +36,7 @@
   --primary:#8C8CF7; --primary-600:#7E7EF2; --primary-050:#23233E;
   --accent:#B79BFB; --grad:linear-gradient(135deg,#6D6DF2,#9B7BF6);
   --grad-warm:linear-gradient(135deg,#5B54E6,#7C3AED);
+  --danger:#FF453A; /* ≥4.5:1 on dark surfaces */
   --focus:#5AA2FF;
   --bg:#000000; --surface:#1C1C1E; --surface-2:#2C2C2E; --raised:#1C1C1E;
   --fill:#7676803D; --fill-2:#7878805C;
@@ -532,7 +533,7 @@ function catDot(cat){return `<span class="dot" style="background:${CAT[cat]}"></
 /* ============================================================
    APP STATE + ROUTER
    ============================================================ */
-const state = {tab:'home', ctId:null, itemId:null, locId:null, ctFrom:'browse', itemFrom:'container', searchScope:null, theme:'light', hintDismissed:false};
+const state = {tab:'home', ctId:null, itemId:null, locId:null, ctFrom:'browse', itemFrom:'container', scanFrom:'home', searchScope:null, theme:'light', hintDismissed:false};
 const el = document.getElementById('screen');
 let addCt=null, addCat='Tools', addQty=1, addName='', addNotes='';
 let searchQ='';
@@ -574,7 +575,7 @@ function homeScreen(){
   <main class="view pad pad-b fadein screen-root" tabindex="-1" aria-label="Home">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:6px;gap:10px">
       <div style="min-width:0"><p class="eyebrow" style="margin:0">Good morning</p><h1 class="h1">Brandon's Home</h1></div>
-      <button class="ctrl round" style="margin-top:6px" onclick="go('profile')" aria-label="Notifications">${I.bell}</button>
+      <button class="ctrl round" style="margin-top:6px" onclick="demo()" aria-label="Notifications">${I.bell}</button>
     </div>
     <button class="search" style="margin-top:14px" onclick="go('search')" aria-label="Search all items">${I.search}<span class="ph">Search all items…</span></button>
     ${coach}
@@ -828,10 +829,15 @@ function adjAddQty(d){addQty=Math.max(1,addQty+d);render(false);announce('Quanti
   const b=el.querySelector('.qty [aria-label="'+(d<0?'Decrease':'Increase')+' quantity"]');if(b)b.focus();}
 
 /* ---------------- PAIR TAG (unknown scan) ---------------- */
-let pairCover=0;
+const COVERS=['📦','🔧','🎄','🧥','⛺','🧸','🔌','🍽️','📄','🏀','🎨','🧰'];
+const COVER_COLS=['#6366F1','#B45309','#EF4444','#3B82F6','#10B981','#EC4899','#8B5CF6','#14B8A6','#64748B','#E05A0E','#A855F7','#0284C7'];
+const COVER_DEEP=['#4338CA','#92400E','#B91C1C','#1D4ED8','#047857','#BE185D','#6D28D9','#0F766E','#334155','#9A3412','#7E22CE','#075985'];
+const PAIR_UID='04:D9:33:1A';
+let pairCover=0, pairName='', pairLoc=null;
 function pairScreen(){
-  const covers=['📦','🔧','🎄','🧥','⛺','🧸','🔌','🍽️','📄','🏀','🎨','🧰'];
-  const cols=['#6366F1','#B45309','#EF4444','#3B82F6','#10B981','#EC4899','#8B5CF6','#14B8A6','#64748B','#E05A0E','#A855F7','#0284C7'];
+  const locBtns=Object.values(LOC).map(l=>`<button class="chip" role="radio" aria-checked="${pairLoc===l.id}" tabindex="${(pairLoc===l.id||(pairLoc===null&&l.id==='garage'))?0:-1}"
+      style="padding:10px 13px;font-size:.875rem;border:none;cursor:pointer${pairLoc===l.id?';background:var(--primary-050);color:var(--primary);box-shadow:0 0 0 1.5px var(--primary)':''}"
+      onclick="pickLoc('${l.id}')"><span aria-hidden="true">${l.icon}</span>${l.name}</button>`).join('');
   return `${statusbar()}
   <section class="sheet-scr screen-root" tabindex="-1" role="dialog" aria-modal="true" aria-label="Pair a new bin">
     <div class="grabber" aria-hidden="true"></div>
@@ -842,24 +848,37 @@ function pairScreen(){
     <div class="view pad" style="padding-bottom:30px">
       <div class="card" style="padding:16px;display:flex;gap:12px;align-items:center;margin-top:6px;background:var(--primary-050)">
         <div class="mini-ic" style="background:var(--primary);width:40px;height:40px;border-radius:12px" aria-hidden="true">${I.nfc}</div>
-        <div><b style="font-size:.9375rem">New tag detected</b><div class="sub" style="font-size:.8125rem">UID 04:D9:33:1A · not yet linked</div></div>
+        <div><b style="font-size:.9375rem">New tag detected</b><div class="sub" style="font-size:.8125rem">UID ${PAIR_UID} · not yet linked</div></div>
       </div>
       <div style="height:16px"></div>
-      <div class="field"><label for="binName">Bin name</label><input id="binName" class="input" placeholder="e.g. Garage Overflow" value=""></div>
+      <div class="field"><label for="binName">Bin name</label><input id="binName" class="input" placeholder="e.g. Garage Overflow" value="${esc(pairName)}" oninput="pairName=this.value"></div>
       <div class="field"><span class="flabel" id="locLbl">Location</span>
-        <button class="input tap" aria-labelledby="locLbl" onclick="demo()"><span class="ph">Choose a location…</span>${I.chev}</button></div>
+        <div role="radiogroup" aria-labelledby="locLbl" onkeydown="locKey(event)" style="display:flex;flex-wrap:wrap;gap:8px">${locBtns}</div></div>
       <div class="field"><span class="flabel" id="coverLbl">Cover</span>
-        <div class="pick-grid" role="radiogroup" aria-labelledby="coverLbl" onkeydown="coverKey(event)">${covers.map((e,i)=>`<button class="p" role="radio" aria-checked="${i===pairCover}" aria-label="Cover ${i+1}" tabindex="${i===pairCover?0:-1}" style="background:${cols[i]}" onclick="pickCover(${i})">${e}</button>`).join('')}</div>
+        <div class="pick-grid" role="radiogroup" aria-labelledby="coverLbl" onkeydown="coverKey(event)">${COVERS.map((e,i)=>`<button class="p" role="radio" aria-checked="${i===pairCover}" aria-label="Cover ${i+1}" tabindex="${i===pairCover?0:-1}" style="background:${COVER_COLS[i]}" onclick="pickCover(${i})">${e}</button>`).join('')}</div>
       </div>
-      <button class="btn primary" onclick="finishPair()">${I.tag} Write & pair tag</button>
+      <button class="btn primary" onclick="finishPair()">${I.tag} Write &amp; pair tag</button>
       <p class="sub" style="text-align:center;font-size:.78125rem;margin-top:12px">The tag will be written so anyone can scan this bin.</p>
     </div>
   </section>`;
 }
-function pickCover(i){pairCover=i;render(false);const r=el.querySelector('[role="radio"][aria-checked="true"]');if(r)r.focus();}
+function pickCover(i){pairCover=i;render(false);const r=el.querySelector('[aria-labelledby="coverLbl"] [aria-checked="true"]');if(r)r.focus();}
 function coverKey(e){const keys=['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'];if(!keys.includes(e.key))return;e.preventDefault();
-  const n=12;let i=(e.key==='ArrowRight'||e.key==='ArrowDown')?(pairCover+1)%n:(pairCover-1+n)%n;pickCover(i);}
-function finishPair(){toast('Tag paired to new bin');go('home');}
+  const n=COVERS.length;let i=(e.key==='ArrowRight'||e.key==='ArrowDown')?(pairCover+1)%n:(pairCover-1+n)%n;pickCover(i);}
+function pickLoc(id){pairLoc=id;render(false);const r=el.querySelector('[aria-labelledby="locLbl"] [aria-checked="true"]');if(r)r.focus();}
+function locKey(e){const keys=['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'];if(!keys.includes(e.key))return;e.preventDefault();
+  const ids=Object.keys(LOC);let i=Math.max(0,ids.indexOf(pairLoc));i=(e.key==='ArrowRight'||e.key==='ArrowDown')?(i+1)%ids.length:(i-1+ids.length)%ids.length;pickLoc(ids[i]);}
+function finishPair(){
+  const name=pairName.trim();
+  if(!name){toast('Give your bin a name first');const f=el.querySelector('#binName');if(f)f.focus();return;}
+  if(!pairLoc){toast('Choose a location for this bin');const g=el.querySelector('[aria-labelledby="locLbl"] [role="radio"]');if(g)g.focus();return;}
+  const id='c'+(Object.keys(CT).length+1);
+  CT[id]={id,name,emoji:COVERS[pairCover],grad:`linear-gradient(135deg,${COVER_COLS[pairCover]},${COVER_DEEP[pairCover]})`,
+    loc:pairLoc,uid:PAIR_UID,last:'Just now',color:COVER_COLS[pairCover]};
+  ACT.unshift({ic:'🏷️',color:'#8B5CF6',act:'pair',html:`Paired a tag to <b>${esc(name)}</b>`,t:'Just now'});
+  openContainer(id,'home');
+  toast('Paired "'+name+'" — it\'s ready to fill');
+}
 
 /* ---------------- PROFILE ---------------- */
 function profileScreen(){
@@ -936,7 +955,7 @@ function scanSuccessScreen(id){
         <span class="chip" style="background:rgba(0,0,0,.32);color:#fff">${I.nfc}Tag ${c.uid}</span>
       </div>
     </div>
-    <div class="foot"><button class="simbtn solid" onclick="openContainer('${id}','home')">Open bin →</button></div>
+    <div class="foot"><button class="simbtn solid" onclick="openContainer('${id}',state.scanFrom||'home')">Open bin →</button></div>
   </section>`;
 }
 
@@ -959,27 +978,46 @@ function screenFor(){
     default: return homeScreen();
   }
 }
+const MODAL_TABS=['add','pair','scan','scanSuccess'];
+const isModal=()=>MODAL_TABS.includes(state.tab);
 function render(nav){
   el.innerHTML=screenFor();
+  /* while a modal screen is up, the stage chrome is inert so focus can't escape the dialog */
+  document.querySelectorAll('.stage-head,.hint').forEach(n=>{isModal()?n.setAttribute('inert',''):n.removeAttribute('inert');});
   const root=el.querySelector('.screen-root');
   if(nav){const v=el.querySelector('.view');if(v)v.scrollTop=0;if(root)root.focus({preventScroll:true});}
 }
 function go(tab){if(tab==='search')state.searchScope=null;if(['home','browse','search','profile'].includes(tab))state.lastTab=tab;state.tab=tab;render(true);}
-function back(){go(state.ctFrom||'browse');}
+/* navigate back without side effects (keeps searchScope, unlike go()) */
+function returnTo(route){if(['home','browse','search','profile'].includes(route))state.lastTab=route;state.tab=route;render(true);}
+function back(){returnTo(state.ctFrom||'browse');}
 function openContainer(id,from){state.ctFrom=from||state.tab;state.ctId=id;state.tab='container';render(true);}
 function openLocation(id){state.locId=id;state.tab='location';render(true);}
 function openItem(id,from){state.itemFrom=from||state.tab;state.itemId=id;state.tab='item';render(true);}
-function itemBack(){if(state.itemFrom==='search'){go('search');}else{state.tab='container';render(true);}}
+function itemBack(){if(state.itemFrom==='search'){returnTo('search');}else{state.tab='container';render(true);}}
 function openAdd(ct){addCt=ct||null;addQty=1;addCat='Tools';addName='';addNotes='';state.tab='add';render(true);}
 function cancelAdd(){state.tab=addCt?'container':'home';render(true);}
 function openBinSearch(id){state.searchScope=id;searchQ='';state.tab='search';render(true);const ni=el.querySelector('#searchInput');if(ni)ni.focus();}
 function clearScope(){state.searchScope=null;render(false);const ni=el.querySelector('#searchInput');if(ni)ni.focus();}
 function searchBase(){return state.searchScope?itemsIn(state.searchScope):IT;}
-function saveItem(){toast('Item added');state.tab=state.ctId?'container':'home';render(true);}
-function openScan(){state.tab='scan';render(true);}
-function closeScan(){go(state.lastTab||'home');}
+function saveItem(){
+  const name=addName.trim();
+  if(!name){toast('Give your item a name first');const f=el.querySelector('#itemName');if(f)f.focus();return;}
+  const ct=addCt||state.ctId;
+  if(!ct){toast('Choose a bin for this item');return;}
+  IT.push({id:'i'+(IT.length+1),name,emoji:CAT_EMOJI[addCat]||'📦',cat:addCat,qty:addQty,ct,note:addNotes.trim()});
+  ACT.unshift({ic:'➕',color:'#2FA14C',act:'add',html:`Added <b>${esc(name)}</b> to ${esc(CT[ct].name)}`,t:'Just now'});
+  state.ctId=ct;state.tab='container';render(true);
+  toast('Added '+name);
+}
+function openScan(){
+  state.scanFrom = state.tab==='container' ? (state.ctFrom||'browse')
+    : (['home','browse','search','profile','location'].includes(state.tab)?state.tab:'home');
+  state.tab='scan';render(true);
+}
+function closeScan(){returnTo(state.scanFrom||'home');}
 function scanSuccess(id){state.scanId=id;state.tab='scanSuccess';render(true);}
-function scanUnknown(){state.tab='pair';render(true);}
+function scanUnknown(){pairName='';pairLoc=null;pairCover=0;state.tab='pair';render(true);}
 function demo(){toast('Demo only — not wired in this prototype');}
 
 /* theme */
@@ -994,8 +1032,11 @@ function toggleTheme(){state.theme=state.theme==='dark'?'light':'dark';applyThem
 function announce(m){const n=document.getElementById('live');n.textContent='';setTimeout(()=>{n.textContent=m;},30);}
 function toast(msg){
   document.getElementById('alert').textContent=msg;
+  /* host on .device (position:relative), outside #screen — survives render()'s innerHTML wipe */
+  const host=el.parentElement||el;
+  host.querySelectorAll('.toast').forEach(t=>t.remove());
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
-  el.appendChild(t);setTimeout(()=>t.remove(),1600);
+  host.appendChild(t);setTimeout(()=>t.remove(),1800);
 }
 
 /* keyboard activation for composite role=button elements (cards/rows/cta) */
@@ -1004,6 +1045,23 @@ el.addEventListener('keydown',e=>{
     const b=e.target.closest('[role="button"]');
     if(b&&el.contains(b)){e.preventDefault();b.click();}
   }
+});
+
+/* modal dialogs: trap Tab focus inside the screen, Escape closes */
+document.addEventListener('keydown',e=>{
+  if(!isModal())return;
+  if(e.key==='Escape'){e.preventDefault();
+    if(state.tab==='add')cancelAdd();
+    else if(state.tab==='pair')go('home');
+    else closeScan();
+    return;}
+  if(e.key!=='Tab')return;
+  const f=[...el.querySelectorAll('button,input,select,textarea,[tabindex]')]
+    .filter(x=>!x.disabled&&x.tabIndex>=0&&x.offsetParent!==null);
+  if(!f.length)return;
+  const first=f[0],last=f[f.length-1],a=document.activeElement;
+  if(e.shiftKey&&(a===first||!el.contains(a))){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&(a===last||!el.contains(a))){e.preventDefault();first.focus();}
 });
 
 /* screen jump menu (prototype dev aid) */

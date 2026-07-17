@@ -96,7 +96,8 @@ patterns for the real app:
   landmarks (`<main>`, `<nav aria-label="Primary">`, `<header>`); form fields have
   programmatic labels; the category picker is a keyboard **`radiogroup`** (arrow keys);
   quantity steppers announce their value via `aria-live`; the modal sheets use
-  `role="dialog"`/`aria-modal`.
+  `role="dialog"`/`aria-modal` with a real **focus trap** (Tab wraps inside the dialog,
+  the background stage is `inert`) and **Escape** closes them.
 - **Robust** — icon-only buttons all have `aria-label`s; the dark-mode control is a real
   `role="switch"` with `aria-checked`; the active tab is marked `aria-current="page"`;
   toasts and result counts announce through polite/assertive live regions.
@@ -124,5 +125,7 @@ patterns for the real app:
 
 ## Not included (intentionally)
 
-Real NFC read/write, authentication, data persistence, and networking are out of scope
-for this prototype — it exists to validate the **experience and visual language**.
+Real NFC read/write, authentication, storage, and networking are out of scope for this
+prototype — it exists to validate the **experience and visual language**. Adding items
+and pairing bins *do* update the in-session data (contents, counts, activity feed) so
+the flows feel real end-to-end, but nothing persists across a page reload.
