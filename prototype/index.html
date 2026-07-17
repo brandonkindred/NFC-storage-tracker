@@ -173,6 +173,7 @@ h1,h2,h3{font-weight:750}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;font-size:.78125rem;
   font-weight:600;background:var(--fill);color:var(--text-2)}
 .chip svg{width:13px;height:13px}
+button.chip{min-height:44px;cursor:pointer} /* interactive chips meet the 44px target minimum */
 .chip.tint{background:var(--primary-050);color:var(--primary)}
 .chip .dot{width:9px;height:9px;border-radius:3px;flex:none}
 /* stat tiles */
@@ -539,7 +540,7 @@ function catDot(cat){return `<span class="dot" style="background:${CAT[cat]}"></
    ============================================================ */
 const state = {tab:'home', ctId:null, itemId:null, locId:null, ctFrom:'browse', itemFrom:'container', scanFrom:'home', searchScope:null, theme:'light', hintDismissed:false};
 const el = document.getElementById('screen');
-let addCt=null, addCat='Tools', addQty=1, addName='', addNotes='', addBinOpen=false;
+let addCt=null, addCat='Tools', addQty=1, addName='', addNotes='', addBinOpen=false, addOrigin=null;
 let searchQ='';
 
 function statusbar(){
@@ -693,8 +694,8 @@ function containerScreen(){
         <button class="btn ghost" onclick="demo()">${I.share} Share</button>
       </div>
     </div>
-    <button class="fab" onclick="openAdd('${c.id}')" aria-label="Add an item to ${esc(c.name)}">${I.plus}</button>
   </main>
+  <button class="fab" onclick="openAdd('${c.id}')" aria-label="Add an item to ${esc(c.name)}">${I.plus}</button>
   ${tabbar(tabOf(state.ctFrom))}`;
 }
 
@@ -901,7 +902,7 @@ function finishPair(){
   CT[id]={id,name,emoji:COVERS[pairCover],grad:`linear-gradient(135deg,${COVER_COLS[pairCover]},${COVER_DEEP[pairCover]})`,
     loc:pairLoc,uid:pairUid,last:'Just now',color:COVER_COLS[pairCover]};
   ACT.unshift({ic:'🏷️',color:'#8B5CF6',act:'pair',html:`Paired a tag to <b>${esc(name)}</b>`,t:'Just now'});
-  openContainer(id, state.scanFrom==='container' ? 'browse' : (state.scanFrom||'home'));
+  openContainer(id, ['container','item'].includes(state.scanFrom) ? 'browse' : (state.scanFrom||'home'));
   toast('Paired "'+name+'" — it\'s ready to fill');
 }
 
@@ -1028,9 +1029,10 @@ function openBinFromItem(id){
   else if(state.ctId===id){state.tab='container';render(true);}
   else openContainer(id,'browse');
 }
-function openAdd(ct){addCt=ct||null;addQty=1;addCat='Tools';addName='';addNotes='';addBinOpen=false;state.tab='add';render(true);}
+function openAdd(ct){addCt=ct||null;addOrigin=ct||null;addQty=1;addCat='Tools';addName='';addNotes='';addBinOpen=false;state.tab='add';render(true);}
+/* cancel restores the bin the sheet was opened from — not the picker's current choice */
 function cancelAdd(){
-  if(addCt){state.ctId=addCt;state.ctFrom=state.ctFrom||'browse';state.tab='container';}
+  if(addOrigin){state.ctId=addOrigin;state.ctFrom=state.ctFrom||'browse';state.tab='container';}
   else state.tab='home';
   render(true);
 }
@@ -1048,19 +1050,24 @@ function saveItem(){
   state.ctId=ct;state.tab='container';render(true);
   toast('Added '+name);
 }
+function scanOriginOf(tab){return ['home','browse','search','profile','location','container','item'].includes(tab)?tab:'home';}
 function openScan(){
-  state.scanFrom = ['home','browse','search','profile','location','container'].includes(state.tab)?state.tab:'home';
+  state.scanFrom = scanOriginOf(state.tab);
   state.tab='scan';render(true);
 }
-/* cancel restores exactly where scanning began — incl. the container for a re-scan */
+/* cancel restores exactly where scanning began — incl. a container or item screen */
 function closeScan(){
-  if(state.scanFrom==='container'){state.tab='container';render(true);}
-  else returnTo(state.scanFrom||'home');
+  const f=state.scanFrom||'home';
+  if(f==='container'||f==='item'){state.tab=f;render(true);}
+  else returnTo(f);
 }
 /* open a scan result with a sensible back-origin: a re-scan of the same bin keeps its
-   existing chain; a different bin from a re-scan falls back to browse */
+   existing chain; container/item-originated scans of other bins fall back to browse */
 function openScannedBin(id){
-  const from = state.scanFrom==='container' ? (state.ctId===id?state.ctFrom:'browse') : (state.scanFrom||'home');
+  let from;
+  if(state.scanFrom==='container') from=(state.ctId===id?state.ctFrom:'browse');
+  else if(state.scanFrom==='item') from='browse';
+  else from=state.scanFrom||'home';
   openContainer(id,from);
 }
 function cancelPair(){closeScan();}
@@ -1129,9 +1136,9 @@ function jumpTo(id){
     case 'item': {const it=IT.find(x=>x.id===state.itemId)||IT[0];
       state.ctId=it.ct; state.ctFrom='browse'; openItem(it.id,'container'); break;}
     case 'add': openAdd(state.ctId||'c2'); break;
-    case 'pair': scanUnknown(); break;
+    case 'pair': state.scanFrom=scanOriginOf(state.tab); scanUnknown(); break;
     case 'scan': openScan(); break;
-    case 'scanSuccess': state.scanFrom=state.scanFrom||'home'; scanSuccess('c2'); break;
+    case 'scanSuccess': state.scanFrom=scanOriginOf(state.tab); scanSuccess('c2'); break;
     default: go(id);
   }
 }
