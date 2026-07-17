@@ -190,7 +190,7 @@ h1,h2,h3{font-weight:750}
 .search .ph{color:var(--text-2)}
 .search input{border:none;background:none;outline:none;font-family:var(--font);font-size:1rem;color:var(--text);width:100%}
 .search input::placeholder{color:var(--text-2)}
-.search .clear{background:none;border:none;color:var(--text-2);cursor:pointer;padding:6px;min-width:36px;min-height:36px;display:grid;place-items:center}
+.search .clear{background:none;border:none;color:var(--text-2);cursor:pointer;padding:6px;min-width:44px;min-height:44px;margin:-6px -8px -6px -4px;display:grid;place-items:center}
 /* first-run hint */
 .coach{display:flex;gap:11px;align-items:flex-start;background:var(--primary-050);border:1px solid var(--sep-strong);
   border-radius:var(--r);padding:13px 14px;margin-top:14px}
@@ -387,6 +387,10 @@ button.input{text-align:left;cursor:pointer;min-height:52px}
 @media (max-width:440px){
   body{padding:12px 6px 24px}
   .stage-head{padding:0 6px}
+}
+/* narrow devices: reflow 6-col pickers so each option keeps a ≥44px target */
+@media (max-width:400px){
+  .pick-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
 </style>
 </head>
@@ -602,7 +606,8 @@ function homeScreen(){
   </main>
   ${tabbar('home')}`;
 }
-function dismissHint(){state.hintDismissed=true;render(false);}
+function dismissHint(){state.hintDismissed=true;render(false);
+  const next=el.querySelector('.scan-cta');if(next)next.focus();}
 
 /* ---------------- BROWSE (locations) ---------------- */
 function browseScreen(){
@@ -714,7 +719,7 @@ function itemScreen(){
 
       <h2 class="divider-lbl">LOCATED IN</h2>
       <div class="list">
-        <button class="row" onclick="openContainer('${c.id}','item')" aria-label="Bin ${esc(c.name)} in ${esc(l.name)}">${thumb(c.grad,c.emoji,'')}
+        <button class="row" onclick="openBinFromItem('${c.id}')" aria-label="Bin ${esc(c.name)} in ${esc(l.name)}">${thumb(c.grad,c.emoji,'')}
           <span class="tx"><b>${esc(c.name)}</b><span>${I.pin}${l.name}</span></span><span class="chev">${I.chev}</span></button>
       </div>
 
@@ -790,10 +795,15 @@ function searchScreen(){
 }
 function hi(text,q){const i=text.toLowerCase().indexOf(q);if(i<0)return esc(text);
   return esc(text.slice(0,i))+'<mark style="background:var(--primary-050);color:var(--primary);border-radius:3px;padding:0 2px">'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));}
-function onSearch(v){searchQ=v;const inp=document.getElementById('searchInput');const pos=inp?inp.selectionStart:0;
+function announceCount(){const q=normQ(searchQ);if(!q)return;
+  const n=searchBase().filter(i=>i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)).length;
+  announce(n+' result'+(n!==1?'s':''));}
+let composing=false; /* don't re-render mid-IME-composition — it would kill the composition */
+function onSearch(v){searchQ=v;if(composing)return;
+  const inp=document.getElementById('searchInput');const pos=inp?inp.selectionStart:0;
   render(false);const ni=document.getElementById('searchInput');if(ni){ni.focus();try{ni.setSelectionRange(pos,pos);}catch(e){}}
-  const q=normQ(searchQ);if(q){const n=searchBase().filter(i=>i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)).length;announce(n+' result'+(n!==1?'s':''));}}
-function setSearch(v){searchQ=v;state.tab='search';render(false);const ni=document.getElementById('searchInput');if(ni)ni.focus();}
+  announceCount();}
+function setSearch(v){searchQ=v;state.tab='search';render(false);const ni=document.getElementById('searchInput');if(ni)ni.focus();announceCount();}
 
 /* ---------------- ADD ITEM (sheet) ---------------- */
 function addScreen(){
@@ -824,7 +834,7 @@ function addScreen(){
             <button aria-label="Increase quantity" onclick="adjAddQty(1)">+</button></div></div>
       </div>
       <div class="field"><span class="flabel" id="binLbl">Bin</span>
-        <button class="input tap" id="binPickBtn" aria-labelledby="binLbl" aria-expanded="${addBinOpen}" onclick="toggleBinPicker()">${c?`<span class="val">${thumb(c.grad,c.emoji,'sm')}${esc(c.name)}</span>`:`<span class="ph">Choose a bin…</span>`}${I.chev}</button>
+        <button class="input tap" id="binPickBtn" aria-labelledby="binLbl binPickVal" aria-expanded="${addBinOpen}" onclick="toggleBinPicker()">${c?`<span class="val" id="binPickVal">${thumb(c.grad,c.emoji,'sm')}${esc(c.name)}</span>`:`<span class="ph" id="binPickVal">Choose a bin…</span>`}${I.chev}</button>
         ${addBinOpen?`<div class="list" style="margin-top:8px" role="listbox" aria-label="Choose a bin">${Object.values(CT).map(b=>`<button class="row" role="option" aria-selected="${addCt===b.id}" onclick="pickBin('${b.id}')">${thumb(b.grad,b.emoji,'sm')}
           <span class="tx"><b>${esc(b.name)}</b><span>${LOC[b.loc].name}</span></span>${addCt===b.id?`<span class="chev" style="color:var(--primary)">${I.check}</span>`:''}</button>`).join('')}</div>`:''}
       </div>
@@ -1010,8 +1020,20 @@ function openContainer(id,from){state.ctFrom=from||state.tab;state.ctId=id;state
 function openLocation(id){state.locId=id;state.tab='location';render(true);}
 function openItem(id,from){state.itemFrom=from||state.tab;state.itemId=id;state.tab='item';render(true);}
 function itemBack(){if(state.itemFrom==='search'){returnTo('search');}else{state.tab='container';render(true);}}
+/* "Located in" from an item: never record the item as the container's parent
+   (that made Back loop item↔container). Restore the container's own chain, or
+   inherit the search origin when the item came from search results. */
+function openBinFromItem(id){
+  if(state.itemFrom==='search'){openContainer(id,'search');}
+  else if(state.ctId===id){state.tab='container';render(true);}
+  else openContainer(id,'browse');
+}
 function openAdd(ct){addCt=ct||null;addQty=1;addCat='Tools';addName='';addNotes='';addBinOpen=false;state.tab='add';render(true);}
-function cancelAdd(){state.tab=addCt?'container':'home';render(true);}
+function cancelAdd(){
+  if(addCt){state.ctId=addCt;state.ctFrom=state.ctFrom||'browse';state.tab='container';}
+  else state.tab='home';
+  render(true);
+}
 function openBinSearch(id){state.searchScope=id;searchQ='';state.tab='search';render(true);const ni=el.querySelector('#searchInput');if(ni)ni.focus();}
 function clearScope(){state.searchScope=null;render(false);const ni=el.querySelector('#searchInput');if(ni)ni.focus();}
 function searchBase(){return state.searchScope?itemsIn(state.searchScope):IT;}
@@ -1057,13 +1079,18 @@ function toggleTheme(){state.theme=state.theme==='dark'?'light':'dark';applyThem
 /* live-region announce + toast */
 function announce(m){const n=document.getElementById('live');n.textContent='';setTimeout(()=>{n.textContent=m;},30);}
 function toast(msg){
-  document.getElementById('alert').textContent=msg;
+  /* clear-then-set so ATs re-announce an identical repeated message */
+  const a=document.getElementById('alert');a.textContent='';setTimeout(()=>{a.textContent=msg;},30);
   /* host on .device (position:relative), outside #screen — survives render()'s innerHTML wipe */
   const host=el.parentElement||el;
   host.querySelectorAll('.toast').forEach(t=>t.remove());
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
   host.appendChild(t);setTimeout(()=>t.remove(),1800);
 }
+
+/* IME composition: delegated on the container so listeners survive re-renders */
+el.addEventListener('compositionstart',e=>{if(e.target.id==='searchInput')composing=true;});
+el.addEventListener('compositionend',e=>{if(e.target.id==='searchInput'){composing=false;onSearch(e.target.value);}});
 
 /* keyboard activation for composite role=button elements (cards/rows/cta) */
 el.addEventListener('keydown',e=>{
@@ -1077,6 +1104,7 @@ el.addEventListener('keydown',e=>{
 document.addEventListener('keydown',e=>{
   if(!isModal())return;
   if(e.key==='Escape'){e.preventDefault();
+    if(state.tab==='add'&&addBinOpen){toggleBinPicker();return;} /* collapse the listbox first */
     if(state.tab==='add')cancelAdd();
     else if(state.tab==='pair')cancelPair();
     else closeScan();
@@ -1092,17 +1120,26 @@ document.addEventListener('keydown',e=>{
 
 /* screen jump menu (prototype dev aid) */
 const SCREENS=[['home','Home'],['browse','Browse'],['location','Location detail'],['container','Container detail'],['item','Item detail'],['search','Search'],['add','Add item'],['pair','Pair new tag'],['profile','Profile'],['scan','Scan (NFC)'],['scanSuccess','Scan · success']];
+/* jump through the real navigation initializers so every route's dependent
+   state (ctId, origins, form fields) is valid — never write state.tab directly */
+function jumpTo(id){
+  switch(id){
+    case 'location': openLocation(state.locId||'garage'); break;
+    case 'container': openContainer(state.ctId||'c2','browse'); break;
+    case 'item': {const it=IT.find(x=>x.id===state.itemId)||IT[0];
+      state.ctId=it.ct; state.ctFrom='browse'; openItem(it.id,'container'); break;}
+    case 'add': openAdd(state.ctId||'c2'); break;
+    case 'pair': scanUnknown(); break;
+    case 'scan': openScan(); break;
+    case 'scanSuccess': state.scanFrom=state.scanFrom||'home'; scanSuccess('c2'); break;
+    default: go(id);
+  }
+}
 document.getElementById('jumpBtn').onclick=()=>{
   const names=SCREENS.map((s,i)=>`${i+1}. ${s[1]}`).join('\n');
   const pick=prompt('Jump to screen (1–'+SCREENS.length+'):\n\n'+names,'1');
   if(!pick)return;const idx=parseInt(pick,10)-1;if(idx<0||idx>=SCREENS.length)return;
-  const id=SCREENS[idx][0];
-  if(id==='location')state.locId=state.locId||'garage';
-  if(id==='container')state.ctId=state.ctId||'c2';
-  if(id==='item')state.itemId=state.itemId||'i1';
-  if(id==='scanSuccess')state.scanId='c2';
-  if(id==='add')addCt='c2';
-  state.tab=id;render(true);
+  jumpTo(SCREENS[idx][0]);
 };
 document.getElementById('themeBtn').onclick=toggleTheme;
 
