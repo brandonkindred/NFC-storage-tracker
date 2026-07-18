@@ -754,11 +754,19 @@ function normQ(s){return s.toLowerCase()
   .replace(/^\s*(where(?:'s|\s+is|\s+are)?|find|locate)\s+/,'')
   .replace(/^(my|the|our|a|an)\s+/,'')
   .replace(/[?!.\s]+$/,'').trim();}
+/* substring match with a light singular fallback so plural queries
+   ("ornaments") still find singular names ("Ornament Box") */
+function searchMatches(base,q){
+  const hit=s=>base.filter(i=>i.name.toLowerCase().includes(s)||i.cat.toLowerCase().includes(s));
+  let list=hit(q),eq=q;
+  if(!list.length&&q.endsWith('s')){eq=q.slice(0,-1);list=hit(eq);}
+  return {list,eq};
+}
 function searchScreen(){
   const q=normQ(searchQ);
   const scope=state.searchScope?CT[state.searchScope]:null;
   const base=scope?itemsIn(scope.id):IT;
-  const results = q ? base.filter(i=>i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)) : (scope?base:[]);
+  const {list:results,eq} = q ? searchMatches(base,q) : {list:(scope?base:[]),eq:q};
   const suggestions=['Drill','Passport','Tent','Chargers','Ornaments'];
   let body;
   if(scope && !q){
@@ -774,7 +782,7 @@ function searchScreen(){
         <span class="tx"><b>${cat}</b><span>${n} item${n!==1?'s':''}</span></span><span class="chev">${I.chev}</span></button>`;}).join('')}</div>`;
   } else if(results.length){
     body=`<h2 class="divider-lbl">${results.length} RESULT${results.length!==1?'S':''}</h2>
-      <div class="list">${results.map(it=>itemRow(it,q)).join('')}</div>`;
+      <div class="list">${results.map(it=>itemRow(it,eq)).join('')}</div>`;
   } else {
     body=`<div class="empty"><div class="ic">${I.search}</div><h2>No matches</h2><p>Nothing found for “${esc(searchQ)}”${scope?' in '+esc(scope.name):''}. Try another word${scope?' or search all bins':' or browse by category'}.</p></div>`;
   }
@@ -797,7 +805,7 @@ function searchScreen(){
 function hi(text,q){const i=text.toLowerCase().indexOf(q);if(i<0)return esc(text);
   return esc(text.slice(0,i))+'<mark style="background:var(--primary-050);color:var(--primary);border-radius:3px;padding:0 2px">'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));}
 function announceCount(){const q=normQ(searchQ);if(!q)return;
-  const n=searchBase().filter(i=>i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)).length;
+  const n=searchMatches(searchBase(),q).list.length;
   announce(n+' result'+(n!==1?'s':''));}
 let composing=false; /* don't re-render mid-IME-composition — it would kill the composition */
 function onSearch(v){searchQ=v;if(composing)return;
@@ -1013,7 +1021,9 @@ function render(nav){
   const root=el.querySelector('.screen-root');
   if(nav){const v=el.querySelector('.view');if(v)v.scrollTop=0;if(root)root.focus({preventScroll:true});}
 }
-function go(tab){if(tab==='search')state.searchScope=null;if(['home','browse','search','profile'].includes(tab))state.lastTab=tab;state.tab=tab;render(true);}
+/* switching TO the Search tab means global intent; re-tapping the active tab keeps
+   the bin scope (the scope chip is the explicit clear affordance) */
+function go(tab){if(tab==='search'&&state.tab!=='search')state.searchScope=null;if(['home','browse','search','profile'].includes(tab))state.lastTab=tab;state.tab=tab;render(true);}
 /* navigate back without side effects (keeps searchScope, unlike go()) */
 function returnTo(route){if(['home','browse','search','profile'].includes(route))state.lastTab=route;state.tab=route;render(true);}
 function back(){returnTo(state.ctFrom||'browse');}
