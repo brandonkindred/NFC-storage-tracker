@@ -695,7 +695,7 @@ function containerScreen(){
       </div>
     </div>
   </main>
-  <button class="fab" onclick="openAdd('${c.id}')" aria-label="Add an item to ${esc(c.name)}">${I.plus}</button>
+  ${items.length?`<button class="fab" onclick="openAdd('${c.id}')" aria-label="Add an item to ${esc(c.name)}">${I.plus}</button>`:''}
   ${tabbar(tabOf(state.ctFrom))}`;
 }
 
@@ -746,7 +746,7 @@ function adjItemQty(id,d){const it=IT.find(x=>x.id===id);if(!it)return;it.qty=Ma
 
 /* ---------------- SEARCH ---------------- */
 function itemRow(it,q){const c=CT[it.ct];const l=LOC[c.loc];
-  return `<button class="row" onclick="openItem('${it.id}','search')" aria-label="${esc(it.name)}, in ${esc(c.name)}, ${esc(l.name)}">${thumb(CAT[it.cat],it.emoji,'sm')}
+  return `<button class="row" onclick="openItem('${it.id}','search')" aria-label="${esc(it.name)}${it.qty>1?', quantity '+it.qty:''}, in ${esc(c.name)}, ${esc(l.name)}">${thumb(CAT[it.cat],it.emoji,'sm')}
     <span class="tx"><b>${q?hi(it.name,q):esc(it.name)}</b><span>${I.pin}${esc(c.name)} · ${l.name}</span></span>
     <span class="trail" aria-hidden="true">${it.qty>1?'×'+it.qty:''}</span><span class="chev">${I.chev}</span></button>`;}
 /* strip natural-language lead-ins the placeholder invites ("where is my drill" → "drill") */
@@ -910,7 +910,9 @@ function finishPair(){
   CT[id]={id,name,emoji:COVERS[pairCover],grad:`linear-gradient(135deg,${COVER_COLS[pairCover]},${COVER_DEEP[pairCover]})`,
     loc:pairLoc,uid:pairUid,last:'Just now',color:COVER_COLS[pairCover]};
   ACT.unshift({ic:'🏷️',color:'#8B5CF6',act:'pair',html:`Paired a tag to <b>${esc(name)}</b>`,t:'Just now'});
-  openContainer(id, ['container','item'].includes(state.scanFrom) ? 'browse' : (state.scanFrom||'home'));
+  const from = ['container','item'].includes(state.scanFrom) ? 'browse' : (state.scanFrom||'home');
+  if(from==='location')state.locId=pairLoc; /* Back goes to the new bin's own room */
+  openContainer(id, from);
   toast('Paired "'+name+'" — it\'s ready to fill');
 }
 
@@ -1057,6 +1059,7 @@ function saveItem(){
   const added=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   IT.push({id:'i'+(IT.length+1),name,emoji:CAT_EMOJI[addCat]||'📦',cat:addCat,qty:addQty,ct,note:addNotes.trim(),added});
   ACT.unshift({ic:'➕',color:'#2FA14C',act:'add',html:`Added <b>${esc(name)}</b> to ${esc(CT[ct].name)}`,t:'Just now'});
+  if(ct!==addOrigin)state.ctFrom='browse'; /* a different bin has no chain to the origin bin's room */
   state.ctId=ct;state.tab='container';render(true);
   toast('Added '+name);
 }
