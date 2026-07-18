@@ -206,8 +206,8 @@ button.chip{min-height:44px;cursor:pointer} /* interactive chips meet the 44px t
   text-align:left;border:none;font-family:var(--font);display:block;
   background:var(--grad-warm);box-shadow:0 14px 34px rgba(79,70,229,.42);cursor:pointer;margin-top:16px}
 .scan-cta .rings{position:absolute;right:-30px;top:-30px;width:150px;height:150px;opacity:.4}
-.scan-cta h2{margin:0;font-size:1.25rem;font-weight:750;letter-spacing:-.3px;color:#fff}
-.scan-cta p{margin:4px 0 0;font-size:.875rem;color:#fff;max-width:210px}
+.scan-cta .cta-title{display:block;font-size:1.25rem;font-weight:750;letter-spacing:-.3px;color:#fff}
+.scan-cta .cta-sub{display:block;margin-top:4px;font-size:.875rem;color:#fff;max-width:210px}
 .scan-cta .go{margin-top:15px;display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.3);
   backdrop-filter:blur(6px);padding:10px 16px;border-radius:999px;font-weight:650;font-size:.875rem} /* darkened backdrop keeps white text ≥4.5:1 */
 .scan-cta .go svg{width:17px;height:17px}
@@ -588,8 +588,8 @@ function homeScreen(){
     ${coach}
     <button class="scan-cta" onclick="openScan()" aria-label="Scan a bin — hold your phone to a tagged box to see what's inside">
       <span class="rings" aria-hidden="true">${I.nfc}</span>
-      <h2>Scan a bin</h2>
-      <p>Hold your phone to any tagged box to see what's inside — instantly.</p>
+      <span class="cta-title">Scan a bin</span>
+      <span class="cta-sub">Hold your phone to any tagged box to see what's inside — instantly.</span>
       <span class="go">${I.scan} Start scanning</span>
     </button>
 
@@ -795,7 +795,7 @@ function searchScreen(){
     <div class="search" style="margin:12px 0 8px" role="search">${I.search}
       <label class="sr-only" for="searchInput">${scope?'Search '+esc(scope.name):'Search all items'}</label>
       <input id="searchInput" placeholder="${scope?'Search this bin…':"Find any item — 'where is my…'"}" value="${esc(searchQ)}" oninput="onSearch(this.value)" autocomplete="off">
-      ${q?`<button class="clear" onclick="setSearch('')" aria-label="Clear search">${I.x}</button>`:''}
+      ${searchQ?`<button class="clear" onclick="setSearch('')" aria-label="Clear search">${I.x}</button>`:''}
     </div>
     ${scopeChip}
     ${body}
@@ -820,6 +820,7 @@ function addScreen(){
   const cats=Object.keys(CAT);
   return `${statusbar()}
   <section class="sheet-scr screen-root" tabindex="-1" role="dialog" aria-modal="true" aria-label="Add a new item">
+    <div class="sr-only" role="alert"></div>
     <div class="grabber" aria-hidden="true"></div>
     <header class="nav" style="background:transparent;backdrop-filter:none;border:none">
       <div class="side"><button class="back" onclick="cancelAdd()">Cancel</button></div>
@@ -874,6 +875,7 @@ function pairScreen(){
       onclick="pickLoc('${l.id}')"><span aria-hidden="true">${l.icon}</span>${l.name}</button>`).join('');
   return `${statusbar()}
   <section class="sheet-scr screen-root" tabindex="-1" role="dialog" aria-modal="true" aria-label="Pair a new bin">
+    <div class="sr-only" role="alert"></div>
     <div class="grabber" aria-hidden="true"></div>
     <header class="nav" style="background:transparent;backdrop-filter:none;border:none">
       <div class="side"><button class="back" onclick="cancelPair()">Cancel</button></div>
@@ -1089,7 +1091,7 @@ function scanSuccess(id){
   if(c){c.last='Just now';ACT.unshift({ic:'📡',color:'#4F46E5',act:'scan',html:`Scanned <b>${esc(c.name)}</b>`,t:'Just now'});}
   state.scanId=id;state.tab='scanSuccess';render(true);
 }
-function scanUnknown(){pairName='';pairLoc=null;pairCover=0;pairUid=nextPairUid();state.tab='pair';render(true);}
+function scanUnknown(){pairName='';pairLoc=(state.scanFrom==='location'?state.locId:null);pairCover=0;pairUid=nextPairUid();state.tab='pair';render(true);}
 function demo(){toast('Demo only — not wired in this prototype');}
 
 /* theme */
@@ -1103,8 +1105,10 @@ function toggleTheme(){state.theme=state.theme==='dark'?'light':'dark';applyThem
 /* live-region announce + toast */
 function announce(m){const n=document.getElementById('live');n.textContent='';setTimeout(()=>{n.textContent=m;},30);}
 function toast(msg){
-  /* clear-then-set so ATs re-announce an identical repeated message */
-  const a=document.getElementById('alert');a.textContent='';setTimeout(()=>{a.textContent=msg;},30);
+  /* prefer an alert region inside the open modal (AT may ignore content outside the
+     aria-modal subtree); fall back to the global one. clear-then-set re-announces repeats */
+  const a=el.querySelector('.screen-root [role="alert"]')||document.getElementById('alert');
+  a.textContent='';setTimeout(()=>{a.textContent=msg;},30);
   /* host on .device (position:relative), outside #screen — survives render()'s innerHTML wipe */
   const host=el.parentElement||el;
   host.querySelectorAll('.toast').forEach(t=>t.remove());
@@ -1138,8 +1142,10 @@ document.addEventListener('keydown',e=>{
     .filter(x=>!x.disabled&&x.tabIndex>=0&&x.offsetParent!==null);
   if(!f.length)return;
   const first=f[0],last=f[f.length-1],a=document.activeElement;
-  if(e.shiftKey&&(a===first||!el.contains(a))){e.preventDefault();last.focus();}
-  else if(!e.shiftKey&&(a===last||!el.contains(a))){e.preventDefault();first.focus();}
+  /* !f.includes(a) also covers the dialog container itself (tabindex -1, focused on open),
+     so an immediate Shift+Tab wraps to the last control instead of escaping */
+  if(e.shiftKey&&(a===first||!f.includes(a))){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&(a===last||!f.includes(a))){e.preventDefault();first.focus();}
 });
 
 /* screen jump menu (prototype dev aid) */
